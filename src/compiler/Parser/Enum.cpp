@@ -1,46 +1,48 @@
 #include "Parser.h"
 
-PResult<EnumDefinition> Parser::ParseEnumDefinition(TokenStream &tokens)
+PResult<EnumDefAST> Parser::ParseEnumDefinition()
 {
-    if (!tokens.Match(TokenType::KwEnum))
-        return NONMATCH();
+    Mark();
 
-    auto enumName = ParseName(tokens);
+    if (!tokens.Match(TokenType::KwEnum))
+        return NonMatch();
+
+    auto enumName = ParseName();
     if (!enumName)
-        return ERROR("Expected an identifier");
+        return Error("Expected an identifier");
 
     if (!tokens.Match(TokenType::LCurly))
-        return ERROR("Expected '{'");
+        return Error("Expected '{'");
 
-    Name *entry = ParseName(tokens);
+    NameAST* entry = ParseName();
     if (!entry)
-        return ERROR("Expected identifier");
+        return Error("Expected identifier");
 
-    std::vector<Name *> values;
+    std::vector<NameAST*> values;
 
     auto argComma = tokens.Match(TokenType::OpComma);
     if (argComma)
     {
-        entry = ParseName(tokens);
+        entry = ParseName();
         if (!entry)
-            return ERROR("Expected an identifier");
+            return Error("Expected an identifier");
 
         values.push_back(entry);
 
         while (entry && argComma)
         {
             argComma = tokens.Match(TokenType::OpComma);
-            entry = ParseName(tokens);
+            entry = ParseName();
 
             if (argComma && !entry)
-                return ERROR("Expected an identifier");
+                return Error("Expected an identifier");
             if (entry)
                 values.push_back(entry);
         }
     }
 
     if (!tokens.Match(TokenType::RCurly))
-        return ERROR("Expected '}'");
+        return Error("Expected '}' at the end of enum");
 
-    return new EnumDefinition{enumName, values};
+    return new EnumDefAST{ enumName, values };
 }

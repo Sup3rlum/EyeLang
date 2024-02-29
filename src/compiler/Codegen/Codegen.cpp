@@ -1,127 +1,177 @@
 #include "Codegen.h"
 
-using namespace llvm;
-
-Value *IfStatement::Codegen(CModule *module)
+CGValue* IfStmntAST::Codegen(CModule* module)
 {
     return NULL;
 }
 
-Value *StructDefinition::Codegen(CModule *module)
+CGValue* StructDefAST::Codegen(CModule* module)
 {
     return NULL;
 }
 
-Value *ForStatement::Codegen(CModule *module)
+CGValue* ForStmntAST::Codegen(CModule* module)
 {
     return NULL;
 }
 
-Value *WhileStatement::Codegen(CModule *module)
+CGValue* WhileStmntAST::Codegen(CModule* module)
 {
     return NULL;
 }
 
-Value *Block::Codegen(CModule *module)
+CGValue* BlockAST::Codegen(CModule* module)
 {
     return NULL;
 }
 
-Value *AtomicFactor::Codegen(CModule *module)
+CGValue* BinaryExprAST::Codegen(CModule* module)
 {
     return NULL;
 }
 
-Value *Sum::Codegen(CModule *module)
-{
-    return NULL;
-}
-Value *ExprFactor::Codegen(CModule *module)
+CGValue* ExprAST::Codegen(CModule* module)
 {
     return NULL;
 }
 
-Value *Term::Codegen(CModule *module)
+CGValue* VarDeclAST::Codegen(CModule* module)
 {
     return NULL;
 }
 
-Value *Cond::Codegen(CModule *module)
+CGValue* ReturnStmntAST::Codegen(CModule* module)
 {
     return NULL;
 }
 
-Value *Eq::Codegen(CModule *module)
-{
-    return NULL;
-}
-Value *LogicalAnd::Codegen(CModule *module)
-{
-    return NULL;
-}
-Value *LogicalOr::Codegen(CModule *module)
-{
-    return NULL;
-}
-Value *Expression::Codegen(CModule *module)
-{
-    return NULL;
-}
-Value *VarDeclaration::Codegen(CModule *module)
+CGValue* CompDefAST::Codegen(CModule* module)
 {
     return NULL;
 }
 
-Value *ReturnStatement::Codegen(CModule *module)
+CGValue* FuncProtoAST::Codegen(CModule* module)
 {
     return NULL;
 }
 
-Value *CompDefinition::Codegen(CModule *module)
+CGValue* FuncParamAST::Codegen(CModule* module)
 {
     return NULL;
 }
 
-Value *FunctionProto::Codegen(CModule *module)
+CGValue* MemberFuncDefAST::Codegen(CModule* module)
 {
     return NULL;
 }
 
-Value *FunctionParameter::Codegen(CModule *module)
+CGValue* ModuleFuncDefAST::Codegen(CModule* module)
 {
     return NULL;
 }
 
-Value *MemberFunctionDefinition::Codegen(CModule *module)
+CGValue* FunctionCallAST::Codegen(CModule* module)
 {
     return NULL;
 }
 
-Value *ModuleFunctionDefinition::Codegen(CModule *module)
+CGValue* NameAST::Codegen(CModule* module)
 {
     return NULL;
 }
 
-Value *FunctionCall::Codegen(CModule *module)
+CGValue* EnumDefAST::Codegen(CModule* module)
 {
     return NULL;
 }
 
-Value *Name::Codegen(CModule *module)
+CGValue* NumberAST::Codegen(CModule* module)
+{
+    return NULL;
+}
+CGValue* AST::Codegen(CModule* module)
 {
     return NULL;
 }
 
-Value *EnumDefinition::Codegen(CModule *module)
+CGValue* ModuleStmntAST::Codegen(CModule* module)
 {
     return NULL;
 }
 
-Value *Number::Codegen(CModule *module)
+/*CGValue* AtomicExprAST::Codegen(CModule* module)
+{
+    return NULL;
+}*/
+
+CGValue* SubscriptAST::Codegen(CModule* module)
 {
     return NULL;
 }
-Value *AST::Codegen(CModule *module)
+
+CGValue* StmntAST::Codegen(CModule* module)
 {
     return NULL;
 }
+
+CGValue* ConstDeclAST::Codegen(CModule* module)
+{
+    return NULL;
+}
+
+CGValue* QualifiedTypeAST::Codegen(CModule* module)
+{
+    return NULL;
+}
+
+CGValue* StringLiteralAST::Codegen(CModule* module)
+{
+    return NULL;
+}
+
+CGValue* NamespaceDefAST::Codegen(CModule* module)
+{
+    return NULL;
+}
+CGValue* ImportStatementAST::Codegen(CModule* module)
+{
+    return NULL;
+}
+
+CGValue* VoidTypeAST::Codegen(CModule* module)
+{
+    return NULL;
+}
+
+CGValue* ExprStmntAST::Codegen(CModule* module)
+{
+    return NULL;
+}
+
+
+CGValue* CharLiteralAST::Codegen(CModule* module)
+{
+    return NULL;
+}
+
+
+CGValue* UnaryExprAST::Codegen(CModule* module)
+{
+    return NULL;
+}
+
+CGValue* ParenExprAST::Codegen(CModule* module)
+{
+    return NULL;
+}
+
+CGValue* BreakStmntAST::Codegen(CModule* module)
+{
+    return NULL;
+}
+
+CGValue* BoolLiteralAST::Codegen(CModule* module)
+{
+    return NULL;
+}
+

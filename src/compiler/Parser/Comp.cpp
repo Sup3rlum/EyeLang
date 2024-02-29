@@ -1,67 +1,67 @@
 #include "Parser.h"
 
-PResult<CompDefinition> Parser::ParseCompDefinition(TokenStream &tokens)
+PResult<CompDefAST> Parser::ParseCompDefinition()
 {
-    MARK();
+    Mark();
 
     if (!tokens.Match(TokenType::KwComp))
-        return NONMATCH();
+        return NonMatch();
 
-    auto compositionName = ParseName(tokens);
+    auto compositionName = ParseName();
     if (!tokens.Match(TokenType::LSquare))
-        return ERROR("Expected '['");
+        return Error("Expected '['");
 
-    std::vector<Name *> CompNames;
-    Name *componentName = ParseName(tokens);
+    std::vector<NameAST*> CompNames;
+    NameAST* componentName = ParseName();
     if (!componentName)
-        return ERROR("Expected component identifier");
+        return Error("Expected component identifier");
     CompNames.push_back(componentName);
 
     bool compComma = tokens.Match(TokenType::OpComma);
     if (compComma) // More than one component
     {
-        componentName = ParseName(tokens);
+        componentName = ParseName();
         if (!componentName)
-            return ERROR("Expected a component identifier");
+            return Error("Expected a component identifier");
         CompNames.push_back(componentName);
 
         while (componentName && compComma)
         {
             compComma = tokens.Match(TokenType::OpComma);
-            componentName = ParseName(tokens);
+            componentName = ParseName();
 
             if (compComma && !componentName)
-                return ERROR("Expected a component identifier");
+                return Error("Expected a component identifier");
             if (componentName)
                 CompNames.push_back(componentName);
         }
     }
 
     if (!tokens.Match(TokenType::RSquare))
-        return ERROR("Expected ']'");
+        return Error("Expected ']'");
     if (!tokens.Match(TokenType::LCurly))
-        return ERROR("Expected struct body");
+        return Error("Expected struct body");
 
-    MemberFunctionDefinition *member = 0;
-    VarDeclaration *field = 0;
-    std::vector<MemberFunctionDefinition *> members;
-    std::vector<VarDeclaration *> fields;
+    MemberFuncDefAST* member = 0;
+    VarDeclAST* field = 0;
+    std::vector<MemberFuncDefAST*> members;
+    std::vector<VarDeclAST*> fields;
 
     tokens.PushScope(compositionName);
     do
     {
-        member = ParseMemberFunctionDefinition(tokens);
+        member = ParseMemberFunctionDefinition();
         if (member)
         {
             members.push_back(member);
             continue;
         }
 
-        field = ParseVarDeclaration(tokens);
+        field = ParseVarDeclaration();
         if (field)
         {
             if (!tokens.Match(TokenType::OpSemicolon))
-                return ERROR("Expected ';'");
+                return Error("Expected ';'");
             fields.push_back(field);
             continue;
         }
@@ -70,7 +70,7 @@ PResult<CompDefinition> Parser::ParseCompDefinition(TokenStream &tokens)
     tokens.PopScope();
 
     if (!tokens.Match(TokenType::RCurly))
-        return ERROR("Expected '}'");
+        return Error("Expected '}' at the end of composition");
 
-    return new CompDefinition{compositionName, CompNames, fields, members};
+    return new CompDefAST{ compositionName, CompNames, fields, members };
 }

@@ -6,68 +6,33 @@
 #include <vector>
 
 class CModule;
+class CGValue;
 
-namespace llvm
-{
-class Value;
-}
+typedef size_t ASTUUID;
+typedef std::vector<class ASTNode*> ASTChildren;
 
 class ASTNode
 {
-  public:
-    virtual llvm::Value *Codegen(CModule *module) = 0;
+public:
+    ASTUUID GetUUID() { return (size_t)this; }
+    virtual CGValue* Codegen(CModule* module) = 0;
+    virtual ASTChildren GetChildren() = 0;
+    virtual std::string GetValues() { return ""; }
     virtual ~ASTNode()
     {
     }
-};
 
-class Member : public ASTNode
-{
-};
 
-class Atom : public ASTNode
-{
-};
-
-class Number : public Atom
-{
-
-  public:
-    enum class Type
+    template<typename TASTType>
+    TASTType* AsNodeType()
     {
-        Float32,
-        Float64,
-        Int32,
-        Int64,
-        UInt32,
-        UInt64
-    } NumType;
-
-    std::string Value;
-    Number(std::string &value, Type type) : Value(value), NumType(type)
-    {
-    }
-
-    llvm::Value *Codegen(CModule *module);
-};
-
-class Name : public Atom
-{
-  public:
-    std::string Value;
-    Name(std::string &value) : Value(value)
-    {
-    }
-
-    llvm::Value *Codegen(CModule *module);
-    operator std::string()
-    {
-        return Value;
+        return dynamic_cast<TASTType*>(this);
     }
 };
+/*
+class AtomAST : public ASTNode {
 
-class ModuleStatement : public ASTNode
-{
-  public:
-    llvm::Value *Codegen();
+    ASTChildren GetChildren() { return ASTChildren{}; }
 };
+
+*/

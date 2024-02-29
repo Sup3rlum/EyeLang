@@ -1,17 +1,28 @@
 #include "Parser.h"
 
-PResult<AST> Parser::GenerateAST(TokenStream &tokens)
+#define CHECK
+
+PResult<AST> Parser::GenerateAST()
 {
-    std::vector<ModuleStatement *> Statements;
+    std::vector<ImportStatementAST*> Imports;
+    std::vector<ModuleStmntAST*> Statements;
     while (!tokens.EndOf())
     {
-        auto stmnt = ParseModuleStatement(tokens);
-        if (!stmnt)
+
+        if (auto importStmnt = ParseImportStatement())
         {
-            return ERROR(stmnt);
+            Imports.push_back(importStmnt);
         }
-        Statements.push_back(stmnt);
+        else if (auto stmnt = ParseModuleStatement())
+        {
+            Statements.push_back(stmnt);
+        }
+        else
+        {
+            return Error("Unrecognized statement");
+        }
+
     }
 
-    return new AST{Statements};
+    return new AST{ Imports, Statements };
 }

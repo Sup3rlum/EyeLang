@@ -2,57 +2,63 @@
 
 #include "Common.h"
 
-class Name;
-class Block;
+class NameAST;
+class BlockAST;
+class TypeAST;
 
-class FunctionParameter : public ASTNode
+class FuncParamAST : public ASTNode
 {
-  public:
-    Name *ParamName;
-    Name *TypeName;
+public:
+    NameAST* ParamName;
+    TypeAST* TypeName;
 
-    FunctionParameter(Name *name, Name *typeName) : ParamName(name), TypeName(typeName)
+    FuncParamAST(NameAST* name, TypeAST* typeName) : ParamName(name), TypeName(typeName)
     {
     }
-    llvm::Value *Codegen(CModule *module) override;
+    ASTChildren GetChildren();
+    CGValue* Codegen(CModule* module) override;
 };
 
-class FunctionProto : public ASTNode
+class FuncProtoAST : public ASTNode
 {
-  public:
-    Name *RetTypeName;
-    Name *FuncName;
-    std::vector<FunctionParameter *> Args;
+public:
+    TypeAST* RetType;
+    NameAST* FuncName;
+    std::vector<FuncParamAST*> Args;
 
-    FunctionProto(Name *ret, Name *funcName, const std::vector<FunctionParameter *> &args)
-        : RetTypeName(ret), FuncName(funcName), Args(args)
+    FuncProtoAST(TypeAST* ret, NameAST* funcName, const std::vector<FuncParamAST*>& args)
+        : RetType(ret), FuncName(funcName), Args(args)
     {
     }
-    llvm::Value *Codegen(CModule *module) override;
+    ASTChildren GetChildren();
+    CGValue* Codegen(CModule* module) override;
 };
 
-class MemberFunctionDefinition : public Member
+class MemberFuncDefAST : public ASTNode
 {
-  public:
-    Name *ParentName;
-    FunctionProto *FuncProto;
-    Block *Body;
+public:
+    NameAST* ParentName;
+    FuncProtoAST* FuncProto;
+    BlockAST* Body;
 
-    MemberFunctionDefinition(Name *parent, FunctionProto *funcProto, Block *body)
+    MemberFuncDefAST(NameAST* parent, FuncProtoAST* funcProto, BlockAST* body)
         : ParentName(parent), FuncProto(funcProto), Body(body)
     {
     }
-    llvm::Value *Codegen(CModule *module) override;
+
+    ASTChildren GetChildren();
+    CGValue* Codegen(CModule* module) override;
 };
 
-class ModuleFunctionDefinition : public ModuleStatement
+class ModuleFuncDefAST : public ModuleStmntAST
 {
-  public:
-    FunctionProto *FuncProto;
-    Block *Body;
+public:
+    FuncProtoAST* FuncProto;
+    BlockAST* Body;
 
-    ModuleFunctionDefinition(FunctionProto *funcProto, Block *body) : FuncProto(funcProto), Body(body)
+    ModuleFuncDefAST(FuncProtoAST* funcProto, BlockAST* body) : FuncProto(funcProto), Body(body)
     {
     }
-    llvm::Value *Codegen(CModule *module) override;
+    ASTChildren GetChildren();
+    CGValue* Codegen(CModule* module) override;
 };

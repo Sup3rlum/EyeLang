@@ -7,13 +7,12 @@
 #include <unordered_map>
 #include <vector>
 
-class Name;
+class NameAST;
 
 class SourceStream
 {
-    typedef std::vector<std::string> SourceLines;
 
-  private:
+private:
     // SourceLines lines;
     std::string sourceName;
     std::string input;
@@ -21,11 +20,8 @@ class SourceStream
     int currentLineChar;
     int position;
 
-  public:
-    SourceStream(const std::string &name, const std::string &input)
-        : sourceName(name), input(input), position(0), currentLine(0), currentLineChar(0)
-    {
-    }
+public:
+    SourceStream(const std::string& name, const std::string& input);
     Token ReadToken();
     SourceLocation CurrLocation();
 
@@ -43,19 +39,23 @@ class SourceStream
     bool IsDigit(char);
     bool IsAlphanumeric(char);
     bool IsWhiteSpace(char);
+
+    bool SkipWhitespace();
+    bool SkipComment();
+    void SkipNonCode();
 };
 
 class TokenStream
 {
-  public:
-    TokenStream(const std::vector<Token> &tokens) : tokens(tokens), position(0)
+public:
+    TokenStream(const std::vector<Token>& tokens) : tokens(tokens), position(0)
     {
     }
     // bool Match(const std::vector<TokenType>& str);
 
     template <typename... TArgs> bool Match(TArgs... toks)
     {
-        const std::vector<TokenType> &str = {toks...};
+        const std::vector<TokenType>& str = { toks... };
 
         if (tokens.size() - position < str.size())
             return false;
@@ -68,8 +68,24 @@ class TokenStream
         return true;
     }
 
-    bool MatchLabel(std::string &outName);
-    bool MatchNumber(std::string &outValue, bool &outDecimal);
+    bool Match(const std::vector<TokenType>& str)
+    {
+        if (tokens.size() - position < str.size())
+            return false;
+        for (int i = 0; i < str.size(); i++)
+        {
+            if (tokens[position + i].type != str[i])
+                return false;
+        }
+        position += str.size();
+        return true;
+    }
+
+    bool MatchLabel(std::string& outName);
+    bool MatchNumber(std::string& outValue, bool& outDecimal);
+    bool MatchStringLiteral(std::string& outValue);
+    bool MatchCharLiteral(char& outValue);
+
     bool EndOf()
     {
         return position >= tokens.size();
@@ -88,7 +104,7 @@ class TokenStream
         marks.pop();
     }
 
-    void PushScope(Name *name = NULL)
+    void PushScope(NameAST* name = NULL)
     {
         scopes.push(name);
     }
@@ -98,14 +114,15 @@ class TokenStream
         scopes.pop();
     }
 
-    Name *TopScope()
+    NameAST* TopScope()
     {
         return scopes.top();
     }
 
-  private:
-    std::stack<Name *> scopes;
-    std::vector<std::string> errorList;
+
+
+private:
+    std::stack<NameAST*> scopes;
     std::stack<int> marks;
 
     std::vector<Token> tokens;
@@ -114,9 +131,9 @@ class TokenStream
 
 class Tokenizer
 {
-  public:
+public:
     Tokenizer()
     {
     }
-    TokenStream Tokenize(SourceStream &source);
+    TokenStream Tokenize(SourceStream& source);
 };

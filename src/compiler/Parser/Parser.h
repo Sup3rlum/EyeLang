@@ -1,136 +1,150 @@
 #pragma once
 
-#include "../AST/AST.h"
+#include "../Common/Logger.h"
 #include "../Lexer/Lexer.h"
+#include "../AST/AST.h"
 #include <fstream>
 #include <iostream>
 #include <span>
 #include <vector>
+#include <map>
 
-#define MARK() tokens.Mark()
-#define NONMATCH() GenerateNONMATCH(tokens)
-#define ERROR(str) GenerateERROR(tokens, str)
-#define ERROR2(str, prev) GenerateERROR(tokens, str prev)
 
-// typedef std::stack<Name *> ScopeStack;
-
-struct ParseError
+template<LogSeverity logSeverity>
+struct ParserLogMessage : LogMessage
 {
-    SourceLocation sourceLocation;
+    SourceLocation srcLoc;
     std::string message;
+    ParserLogMessage(const SourceLocation& src, const std::string& str) : srcLoc(src), message(str), LogMessage(logSeverity) {}
+
+    std::string GetStr() 
+    { 
+        return srcLoc.sourceName + std::string(":") + std::to_string(srcLoc.line) + ":" + std::to_string(srcLoc.character) + std::string(": ") + message; }
 };
+
+typedef ParserLogMessage<LogSeverity::Info> ParserInfo;
+typedef ParserLogMessage<LogSeverity::Warning> ParserWarning;
+typedef ParserLogMessage<LogSeverity::Error> ParserError;
 
 template <typename TNode> struct PResult
 {
-    TNode *Ptr;
-    std::vector<ParseError> parseErrors;
+    TNode* Ptr;
     PResult() : Ptr(NULL)
     {
     }
-    PResult(TNode *ptr) : Ptr(ptr)
+    PResult(TNode* ptr) : Ptr(ptr)
     {
     }
-    PResult(int i) : Ptr((TNode *)i)
-    {
-    }
-    PResult(const PResult<int> &p) : Ptr((TNode *)p.Ptr), parseErrors(p.parseErrors)
+    PResult(int i) : Ptr((TNode*)i)
     {
     }
 
-    PResult(const ParseError &parseError) : Ptr(0)
-    {
-        parseErrors.push_back(parseError);
-    }
     operator bool()
     {
         return bool(Ptr);
     }
-    operator TNode *()
+    operator TNode* ()
     {
         return Ptr;
     }
 };
+typedef PResult<int> PResultNone;
 
 class Parser
 {
-  private:
-    PResult<int> GenerateERROR(TokenStream &tokens, const std::string &str)
-    {
-        return PResult<int>(ParseError{tokens.CurrentToken().location, str});
-    }
-    template <typename TParseType>
-    PResult<int> GenerateERROR(TokenStream &tokens, const PResult<TParseType> &prevResult)
-    {
-        std::cout << prevResult.parseErrors.size() << std::endl;
-        PResult<int> pr{0};
-        for (auto &pe : prevResult.parseErrors)
-        {
-            pr.parseErrors.push_back(pe);
-        }
+private:
+    Logger* logger;
+    TokenStream tokens;
 
-        return pr;
-    }
-    template <typename TParseType>
-    PResult<int> GenerateERROR(TokenStream &tokens, const std::string &str, const PResult<TParseType> &prevResult)
+    PResultNone Error(const std::string& str)
     {
-        PResult<int> error(ParseError{tokens.CurrentToken().location, str});
-        for (auto &pe : prevResult.parseErrors)
-        {
-            error.parseErrors.push_back(pe);
-        }
-        return error;
+        logger->Log(new ParserError{ tokens.CurrentToken().location, str });
+        return PResultNone{0};
     }
-    PResult<int> GenerateNONMATCH(TokenStream &tokens)
+    PResultNone Warning(const std::string& str)
+    {
+        logger->Log(new ParserWarning{ tokens.CurrentToken().location, str });
+        return PResultNone{0};
+    }
+
+    PResultNone NonMatch()
     {
         tokens.Backtrack();
-        return PResult<int>();
+        return PResultNone{0};
     }
 
-  public:
-    Parser()
+    void Mark()
+    {
+        tokens.Mark();
+    }
+
+public:
+    Parser(const TokenStream& tokenStream, Logger* logger = new BasicLogger()) : tokens(tokenStream), logger(logger)
     {
     }
 
-    PResult<AST> GenerateAST(TokenStream &tokens);
-    PResult<Block> ParseBlock(TokenStream &tokens);
+    PResult<AST> GenerateAST();
+    PResult<BlockAST> ParseBlock();
 
     /* Statements */
-    PResult<Statement> ParseStatement(TokenStream &tokens);
-    PResult<Statement> ParseBlockStatement(TokenStream &tokens);
-    PResult<Statement> ParseNormalStatement(TokenStream &tokens);
-    PResult<IfStatement> ParseIf(TokenStream &tokens);
-    PResult<WhileStatement> ParseWhile(TokenStream &tokens);
-    PResult<ForStatement> ParseFor(TokenStream &tokens);
-    PResult<ReturnStatement> ParseReturn(TokenStream &tokens);
-    PResult<VarDeclaration> ParseVarDeclaration(TokenStream &tokens);
-    PResult<FunctionCall> ParseFunctionCall(TokenStream &tokens);
+    PResult<StmntAST> ParseStatement();
+    PResult<StmntAST> ParseBlockStatement();
+    PResult<StmntAST> ParseNormalStatement();
+
+    PResult<IfStmntAST> ParseIf();
+    PResult<WhileStmntAST> ParseWhile();
+    PResult<ForStmntAST> ParseFor();
+    PResult<ReturnStmntAST> ParseReturn();
+    PResult<VarDeclAST> ParseVarDeclaration();
+    PResult<ConstDeclAST> ParseConstDeclaration();
+    PResult<ExprStmntAST> ParseExprStatement();
+    PResult<BreakStmntAST> ParseBreakStatement();
+
+    /* Types */
+    PResult<TypeAST> ParseType();
 
     /* Top Level  & Function*/
-    PResult<FunctionProto> ParseFunctionProto(TokenStream &tokens);
-    PResult<FunctionParameter> ParseFunctionParameter(TokenStream &tokens);
-    PResult<ModuleStatement> ParseModuleStatement(TokenStream &tokens);
-    PResult<ModuleFunctionDefinition> ParseModuleFunctionDefinition(TokenStream &tokens);
-    PResult<MemberFunctionDefinition> ParseMemberFunctionDefinition(TokenStream &tokens);
-    PResult<StructDefinition> ParseStructDefinition(TokenStream &tokens);
-    PResult<CompDefinition> ParseCompDefinition(TokenStream &tokens);
-    // PResult<Member> ParseStructMember(TokenStream& tokens);
-    PResult<EnumDefinition> ParseEnumDefinition(TokenStream &tokens);
+    PResult<FuncProtoAST> ParseFunctionProto();
+    PResult<FuncParamAST> ParseFunctionParameter();
+    PResult<ModuleStmntAST> ParseModuleStatement();
+    PResult<ImportStatementAST> ParseImportStatement();
+    PResult<ModuleFuncDefAST> ParseModuleFunctionDefinition();
+    PResult<MemberFuncDefAST> ParseMemberFunctionDefinition();
+    PResult<StructDefAST> ParseStructDefinition();
+    PResult<CompDefAST> ParseCompDefinition();
+    PResult<EnumDefAST> ParseEnumDefinition();
+    PResult<NamespaceDefAST> ParseNamespaceDefinition();
 
     /* Expression */
-    PResult<Expression> ParseExpression(TokenStream &tokens);
-    PResult<LogicalOr> ParseLogicalOr(TokenStream &tokens);
-    PResult<LogicalAnd> ParseLogicalAnd(TokenStream &tokens);
-    PResult<Eq> ParseEq(TokenStream &tokens);
-    PResult<Cond> ParseCond(TokenStream &tokens);
-    PResult<Sum> ParseSum(TokenStream &tokens);
-    PResult<Term> ParseTerm(TokenStream &tokens);
-    PResult<Factor> ParseFactor(TokenStream &tokens);
-    PResult<AtomicFactor> ParseAtomicFactor(TokenStream &tokens);
-    PResult<ExprFactor> ParseExprFactor(TokenStream &tokens);
+    PResult<ExprAST> ParseExpression();
+
+    /* Binary operators */
+    PResult<ExprAST> ParseAssignment();
+    PResult<ExprAST> ParseLogicalOr();
+    PResult<ExprAST> ParseLogicalAnd();
+    PResult<ExprAST> ParseEq();
+    PResult<ExprAST> ParseCond();
+    PResult<ExprAST> ParseSum();
+    PResult<ExprAST> ParseTerm();
+    PResult<ExprAST> ParseFactor();
+    PResult<ExprAST> ParseCompound();
+
+    /* Unary Operators */
+    PResult<ExprAST> ParsePreOperator();
+    PResult<ExprAST> ParsePostOperator();
+
+    /* Other */
+    PResult<ExprAST> ParseMemberAccess();
+    PResult<ExprAST> ParseSubscript();
+    PResult<ExprAST> ParseFunctionCall();
+    PResult<ExprAST> ParseAtomicFactor();
+    PResult<ExprAST> ParseExprFactor();
 
     /* Building blocks */
 
-    PResult<Atom> ParseAtom(TokenStream &tokens);
-    PResult<Number> ParseNumber(TokenStream &tokens);
-    PResult<Name> ParseName(TokenStream &tokens);
+    PResult<NumberAST> ParseNumber();
+    PResult<NameAST> ParseName(bool bScopable=false);
+    PResult<StringLiteralAST> ParseStringLiteral();
+    PResult<CharLiteralAST> ParseCharLiteral();
+    PResult<BoolLiteralAST> ParseBoolLiteral();
 };

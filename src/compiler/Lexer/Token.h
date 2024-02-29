@@ -19,6 +19,7 @@ enum class TokenType : int
     OpSemicolon,
     OpColon,
     OpAmpersand,
+    OpLine,
 
     /* KeyWords */
     KwIf,
@@ -36,9 +37,17 @@ enum class TokenType : int
     KwLet,
     KwVar,
     KwEnum,
+    KwImport,
+    KwNamespace,
+    KwBreak,
+    KwSwitch,
+    KwTrue,
+    KwFalse,
 
     Label,
     Numeric,
+    StringLit,
+    CharLit,
 
     /* Brackets */
     LParen,
@@ -49,6 +58,9 @@ enum class TokenType : int
     RCurly,
     LTriangle,
     RTriangle,
+
+    /* Unknown */
+    Unknown
 };
 
 struct SourceLocation

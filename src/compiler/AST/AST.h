@@ -5,28 +5,17 @@
 #include "Function.h"
 #include "Module.h"
 #include "Statement.h"
+#include "Block.h"
+#include "Type.h"
 
-class Block : public ASTNode
+class AST : public ASTNode
 {
-  public:
-    std::vector<class Statement *> Statements;
-    Block(const std::vector<class Statement *> &stmnts) : Statements(stmnts)
+public:
+    std::vector<ImportStatementAST*> Imports;
+    std::vector<ModuleStmntAST*> Statements;
+    AST(const std::vector<ImportStatementAST*> imports,const std::vector<ModuleStmntAST*> stmnts) : Imports(imports), Statements(stmnts)
     {
     }
-    ~Block()
-    {
-    }
-
-    llvm::Value *Codegen(CModule *module);
-};
-
-class AST
-{
-  public:
-    std::vector<std::string> ErrorList;
-    std::vector<ModuleStatement *> Statements;
-    AST(const std::vector<ModuleStatement *> stmnts) : Statements(stmnts)
-    {
-    }
-    llvm::Value *Codegen(CModule *module);
+    CGValue* Codegen(CModule* module);
+    ASTChildren GetChildren();
 };

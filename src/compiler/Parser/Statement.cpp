@@ -1,171 +1,273 @@
 #include "Parser.h"
 
-PResult<Block> Parser::ParseBlock(TokenStream &tokens)
+PResult<BlockAST> Parser::ParseBlock()
 {
-    MARK();
+    Mark();
     bool matchOpenCurly = tokens.Match(TokenType::LCurly);
     if (!matchOpenCurly)
-        return NONMATCH();
+        return NonMatch();
 
-    std::vector<Statement *> statements;
-    auto parsedStatement = ParseStatement(tokens);
+    std::vector<StmntAST*> statements;
+    auto parsedStatement = ParseStatement();
 
     while (parsedStatement)
     {
         statements.push_back(parsedStatement);
-        parsedStatement = ParseStatement(tokens);
+        parsedStatement = ParseStatement();
+        
+        if (!parsedStatement)
+        {
+            bool matchCloseCurly = tokens.Match(TokenType::RCurly);
+            if (!matchCloseCurly)
+                return Error("Unexpected token at end of block");
+
+            break;
+        }
     }
 
-    bool matchCloseCurly = tokens.Match(TokenType::RCurly);
-    if (!matchCloseCurly)
-        return ERROR("Expected '}'");
 
-    return new Block{statements};
+    return new BlockAST{ statements };
 }
 
-PResult<Statement> Parser::ParseBlockStatement(TokenStream &tokens)
+PResult<StmntAST> Parser::ParseBlockStatement()
 {
-    MARK();
-    Statement *stmnt = ParseIf(tokens);
+    Mark();
+    StmntAST* stmnt = ParseIf();
     if (stmnt)
         return stmnt;
 
-    stmnt = ParseFor(tokens);
+    stmnt = ParseFor();
     if (stmnt)
         return stmnt;
 
-    stmnt = ParseWhile(tokens);
+    stmnt = ParseWhile();
     if (stmnt)
         return stmnt;
 
-    return NONMATCH();
+    return NonMatch();
 }
 
-PResult<Statement> Parser::ParseNormalStatement(TokenStream &tokens)
+PResult<ExprStmntAST> Parser::ParseExprStatement()
 {
-    MARK();
+    Mark();
 
-    Statement *stmnt = ParseVarDeclaration(tokens);
-    if (stmnt)
-        return stmnt;
+    auto expr = ParseExpression();
+    if (!expr)
+        return NonMatch();
 
-    stmnt = ParseReturn(tokens);
-    if (stmnt)
-        return stmnt;
-
-    return NONMATCH();
+    return new ExprStmntAST{ expr };
 }
 
-PResult<Statement> Parser::ParseStatement(TokenStream &tokens)
+PResult<StmntAST> Parser::ParseNormalStatement()
 {
-    MARK();
+    Mark();
 
-    Statement *stmnt = ParseBlockStatement(tokens);
+    StmntAST* stmnt = ParseExprStatement();
+    if (stmnt)
+        return stmnt;
+        
+    stmnt = ParseVarDeclaration();
     if (stmnt)
         return stmnt;
 
-    stmnt = ParseNormalStatement(tokens);
+    stmnt = ParseConstDeclaration();
+    if (stmnt)
+        return stmnt;
+
+    stmnt = ParseReturn();
+    if (stmnt)
+        return stmnt;
+
+    stmnt = ParseBreakStatement();
+    if (stmnt)
+        return stmnt;
+
+    return NonMatch();
+}
+
+PResult<StmntAST> Parser::ParseStatement()
+{
+    Mark();
+
+    StmntAST* stmnt = ParseBlockStatement();
+    if (stmnt)
+        return stmnt;
+
+    stmnt = ParseNormalStatement();
     if (stmnt)
     {
         auto semicolon = tokens.Match(TokenType::OpSemicolon);
         if (!semicolon)
-            return ERROR("Expected ';'");
+            return Error("Expected ';'");
         return stmnt;
     }
-    return NONMATCH();
+    return NonMatch();
 }
 
-PResult<IfStatement> Parser::ParseIf(TokenStream &tokens)
+PResult<IfStmntAST> Parser::ParseIf()
 {
-    MARK();
+    Mark();
     bool matchStartCond = tokens.Match(TokenType::KwIf, TokenType::LParen);
     if (!matchStartCond)
-        return NONMATCH();
+        return NonMatch();
 
-    auto condition = ParseExpression(tokens);
+    auto condition = ParseExpression();
     if (!condition)
-        return ERROR("Expected an expression");
+        return Error("Expected an expression");
 
     bool matchEndCond = tokens.Match(TokenType::RParen);
     if (!matchEndCond)
-        return ERROR(")");
+        return Error(")");
 
-    auto block = ParseBlock(tokens);
+    auto block = ParseBlock();
     if (!block)
-        return ERROR("Expected a body");
+        return Error("Expected a body");
 
-    return new IfStatement{condition, block};
+    return new IfStmntAST{ condition, block };
 }
 
-PResult<WhileStatement> Parser::ParseWhile(TokenStream &tokens)
+PResult<WhileStmntAST> Parser::ParseWhile()
 {
-    MARK();
+    Mark();
     bool matchStartCond = tokens.Match(TokenType::KwWhile, TokenType::LParen);
     if (!matchStartCond)
-        return NONMATCH();
+        return NonMatch();
 
-    auto condition = ParseExpression(tokens);
+    auto condition = ParseExpression();
     if (!condition)
-        return ERROR("Expected an expression");
+        return Error("Expected an expression");
 
     bool matchEndCond = tokens.Match(TokenType::RParen);
     if (!matchEndCond)
-        return ERROR(")");
+        return Error(")");
 
-    auto block = ParseBlock(tokens);
+    auto block = ParseBlock();
     if (!block)
-        return ERROR("Expected a body");
+        return Error("Expected a body");
 
-    return new WhileStatement{condition, block};
+    return new WhileStmntAST{ condition, block };
 }
 
-PResult<ForStatement> Parser::ParseFor(TokenStream &tokens)
+PResult<ForStmntAST> Parser::ParseFor()
 {
-    MARK();
+    Mark();
     bool matchStartCond = tokens.Match(TokenType::KwFor, TokenType::LParen);
     if (!matchStartCond)
-        return NONMATCH();
+        return NonMatch();
 
-    auto init = ParseStatement(tokens);
+    auto init = ParseStatement();
     if (!init)
-        return ERROR("Expected initializer statement");
+        return Error("Expected initializer statement");
 
     bool firstSemicolon = tokens.Match(TokenType::OpSemicolon);
     if (!firstSemicolon)
-        return ERROR("Expected ';'");
+        return Error("Expected ';'");
 
-    auto cond = ParseExpression(tokens);
+    auto cond = ParseExpression();
     if (!cond)
-        return ERROR("Expected an expression");
+        return Error("Expected an expression");
 
     bool secondSemicolon = tokens.Match(TokenType::OpSemicolon);
     if (!secondSemicolon)
-        return ERROR("Expected ';'");
+        return Error("Expected ';'");
 
-    auto iter = ParseStatement(tokens);
+    auto iter = ParseStatement();
     if (!iter)
-        return ERROR("Expected an iterator statement");
+        return Error("Expected an iterator statement");
 
     bool matchEndCond = tokens.Match(TokenType::RParen);
     if (!matchEndCond)
-        return ERROR("Expected ')'");
+        return Error("Expected ')'");
 
-    auto block = ParseBlock(tokens);
+    auto block = ParseBlock();
     if (!block)
-        return ERROR("Expected a body");
+        return Error("Expected a body");
 
-    return new ForStatement{init, cond, iter, block};
+    return new ForStmntAST{ init, cond, iter, block };
 }
 
-PResult<ReturnStatement> Parser::ParseReturn(TokenStream &tokens)
+PResult<ReturnStmntAST> Parser::ParseReturn()
 {
-    MARK();
+    Mark();
     if (!tokens.Match(TokenType::KwReturn))
-        return NONMATCH();
+        return NonMatch();
 
-    auto expr = ParseExpression(tokens);
+    auto expr = ParseExpression();
     if (!expr)
-        return ERROR("Expected an expression");
+        return Error("Expected an expression");
 
-    return new ReturnStatement{expr};
+    return new ReturnStmntAST{ expr };
+}
+
+PResult<BreakStmntAST> Parser::ParseBreakStatement()
+{
+    Mark();
+    if (!tokens.Match(TokenType::KwReturn))
+        return NonMatch();
+
+    return new BreakStmntAST{};
+}
+
+PResult<VarDeclAST> Parser::ParseVarDeclaration()
+{
+    Mark();
+
+    bool varKw = tokens.Match(TokenType::KwVar);
+    if (!varKw)
+        return NonMatch();
+
+    auto varName = ParseName();
+    if (!varName)
+        return Error("Expected an identifier");
+
+    if (!tokens.Match(TokenType::OpColon))
+        return Error("Expected ':' after var declaration");
+
+    auto varTypeName = ParseType();
+    if (!varTypeName)
+        return Error("Expected type identifier");
+
+    ExprAST* rhs = NULL;
+    if (tokens.Match(TokenType::OpEqual))
+    {
+        rhs = ParseExpression();
+        if (!rhs)
+            return Error("Expected an expression as assignment");
+    }
+
+    return new VarDeclAST{ varName, varTypeName, rhs };
+}
+
+
+PResult<ConstDeclAST> Parser::ParseConstDeclaration()
+{
+    Mark();
+
+    bool varKw = tokens.Match(TokenType::KwConst);
+    if (!varKw)
+        return NonMatch();
+
+    auto varName = ParseName();
+    if (!varName)
+        return Error("Expected an identifier");
+
+    TypeAST* varTypeName = NULL;
+    if (tokens.Match(TokenType::OpColon))
+    {
+        //return Error("Expected ':' after var declaration");
+
+        varTypeName = ParseType();
+        if (!varTypeName)
+            return Error("Expected type identifier");
+
+    }
+
+    if (!tokens.Match(TokenType::OpEqual))
+        return Error("Must assign to const at declaration");
+
+    ExprAST* rhs = ParseExpression();
+    if (!rhs)
+        return Error("Expected an expression as assignment");
+
+    return new ConstDeclAST{ varName, varTypeName, rhs };
 }

@@ -1,79 +1,106 @@
 #include "Parser.h"
 
-PResult<Expression> Parser::ParseExpression(TokenStream &tokens)
+PResult<ExprAST> Parser::ParseExpression()
 {
-    MARK();
-    auto lor = ParseLogicalOr(tokens);
-    if (!lor)
-        return NONMATCH();
+    Mark();
+    auto pass = ParseAssignment();
+    if (!pass)
+        return NonMatch();
 
-    return new Expression{lor};
+    return pass;
 }
 
-PResult<LogicalOr> Parser::ParseLogicalOr(TokenStream &tokens)
+PResult<ExprAST> Parser::ParseAssignment()
 {
-    MARK();
-    auto land = ParseLogicalAnd(tokens);
+    Mark();
+    auto land = ParseLogicalOr();
     if (!land)
-        return NONMATCH();
+        return NonMatch();
 
-    LogicalOr *tail = NULL;
-    bool op = tokens.Match(TokenType::OpAmpersand, TokenType::OpAmpersand);
+    ExprAST* tail = NULL;
+    bool op = tokens.Match(TokenType::OpEqual);
     if (op)
     {
-        tail = ParseLogicalOr(tokens);
+        tail = ParseAssignment();
         if (!tail)
-            return ERROR("Expected an expression");
+            return Error("Expected an expression");
+
+        return new BinaryExprAST{ land, tail, "=" };
     }
-    return new LogicalOr{land, tail};
+    return land;
 }
-PResult<LogicalAnd> Parser::ParseLogicalAnd(TokenStream &tokens)
+
+PResult<ExprAST> Parser::ParseLogicalOr()
 {
-    MARK();
-    auto eq = ParseEq(tokens);
+    Mark();
+    auto land = ParseLogicalAnd();
+    if (!land)
+        return NonMatch();
+
+    ExprAST* tail = NULL;
+    bool op = tokens.Match(TokenType::OpLine, TokenType::OpLine);
+    if (op)
+    {
+        tail = ParseLogicalOr();
+        if (!tail)
+            return Error("Expected an expression");
+
+        return new BinaryExprAST{ land, tail, "||" };
+    }
+    return land;
+}
+PResult<ExprAST> Parser::ParseLogicalAnd()
+{
+    Mark();
+    auto eq = ParseEq();
     if (!eq)
-        return NONMATCH();
+        return NonMatch();
 
-    LogicalAnd *tail = NULL;
+    ExprAST* tail = NULL;
     bool op = tokens.Match(TokenType::OpAmpersand, TokenType::OpAmpersand);
     if (op)
     {
-        tail = ParseLogicalAnd(tokens);
+        tail = ParseLogicalAnd();
         if (!tail)
-            return ERROR("Expected an expression");
-    }
-    return new LogicalAnd{eq, tail};
-}
-PResult<Eq> Parser::ParseEq(TokenStream &tokens)
-{
-    MARK();
-    auto cond = ParseCond(tokens);
-    if (!cond)
-        return NONMATCH();
+            return Error("Expected an expression");
 
-    Eq *tail = NULL;
+        return new BinaryExprAST{ eq, tail, "&&"};
+    }
+
+    return eq;
+}
+PResult<ExprAST> Parser::ParseEq()
+{
+    Mark();
+    auto cond = ParseCond();
+    if (!cond)
+        return NonMatch();
+
+    ExprAST* tail = NULL;
     bool neq = false;
     bool eq = tokens.Match(TokenType::OpEqual, TokenType::OpEqual);
     if (!eq)
-        neq = tokens.Match(TokenType::OpMinus);
+        neq = tokens.Match(TokenType::OpExcl, TokenType::OpEqual);
     bool op = eq || neq;
 
     if (op)
     {
-        tail = ParseEq(tokens);
+        tail = ParseEq();
         if (!tail)
-            return ERROR("Expected an expression");
-    }
-    return new Eq{cond, tail};
-}
-PResult<Cond> Parser::ParseCond(TokenStream &tokens)
-{
-    MARK();
-    auto sum = ParseSum(tokens);
-    if (!sum)
-        return NONMATCH();
+            return Error("Expected an expression");
 
-    Cond *tail = NULL;
+        return new BinaryExprAST{ cond, tail, "==" };
+    }
+    return cond;
+}
+PResult<ExprAST> Parser::ParseCond()
+{
+    Mark();
+    auto sum = ParseSum();
+    if (!sum)
+        return NonMatch();
+
+    ExprAST* tail = NULL;
     bool l = false;
     bool g = false;
     bool lt = false;
@@ -94,20 +121,22 @@ PResult<Cond> Parser::ParseCond(TokenStream &tokens)
     bool op = l || g || lt || gt;
     if (op)
     {
-        tail = ParseCond(tokens);
+        tail = ParseCond();
         if (!tail)
-            return ERROR("Expected an expression");
-    }
-    return new Cond{sum, tail};
-}
-PResult<Sum> Parser::ParseSum(TokenStream &tokens)
-{
-    MARK();
-    auto term = ParseTerm(tokens);
-    if (!term)
-        return NONMATCH();
+            return Error("Expected an expression");
 
-    Sum *tail = NULL;
+        return new BinaryExprAST{ sum, tail, "<" };
+    }
+    return sum;
+}
+PResult<ExprAST> Parser::ParseSum()
+{
+    Mark();
+    auto term = ParseTerm();
+    if (!term)
+        return NonMatch();
+
+    ExprAST* tail = NULL;
     bool minus = false;
     bool plus = tokens.Match(TokenType::OpPlus);
     if (!plus)
@@ -116,37 +145,39 @@ PResult<Sum> Parser::ParseSum(TokenStream &tokens)
 
     if (op)
     {
-        tail = ParseSum(tokens);
+        tail = ParseSum();
         if (!tail)
-            return ERROR("Expected an expression");
+            return Error("Expected an expression");
+
+        return new BinaryExprAST{ term, tail, "+" };
     }
-    return new Sum{term, tail};
+    return term;
 }
 
-PResult<ExprFactor> Parser::ParseExprFactor(TokenStream &tokens)
+PResult<ExprAST> Parser::ParseExprFactor()
 {
-    MARK();
+    Mark();
     if (!tokens.Match(TokenType::LParen))
-        return NONMATCH();
+        return NonMatch();
 
-    auto expr = ParseExpression(tokens);
+    auto expr = ParseExpression();
     if (!expr)
-        return ERROR("Expected an expression");
+        return Error("Expected an expression");
 
     if (!tokens.Match(TokenType::RParen))
-        return ERROR("Expected ')'");
+        return Error("Expected ')'");
 
-    return new ExprFactor{expr};
+    return new ParenExprAST{ expr };
 }
 
-PResult<Term> Parser::ParseTerm(TokenStream &tokens)
+PResult<ExprAST> Parser::ParseTerm()
 {
-    MARK();
-    auto factor = ParseFactor(tokens);
-    if (!factor)
-        return NONMATCH();
+    Mark();
+    auto member = ParsePreOperator();
+    if (!member)
+        return NonMatch();
 
-    Term *tail = NULL;
+    ExprAST* tail = NULL;
     bool div = false;
     bool mul = tokens.Match(TokenType::OpAsterisk);
     if (!mul)
@@ -155,124 +186,284 @@ PResult<Term> Parser::ParseTerm(TokenStream &tokens)
 
     if (op)
     {
-        tail = ParseTerm(tokens);
+        tail = ParseTerm();
         if (!tail)
-            return ERROR("Expected an expression");
+            return Error("Expected an expression");
+
+        return new BinaryExprAST{ member, tail, "*" };
     }
-    return new Term{factor, tail};
+    return member;
 }
 
-PResult<Factor> Parser::ParseFactor(TokenStream &tokens)
+PResult<ExprAST> Parser::ParsePreOperator()
 {
-    MARK();
-    auto exprFactor = ParseExprFactor(tokens);
+    Mark();
+
+    bool decr = false;
+    bool incr = tokens.Match(TokenType::OpPlus, TokenType::OpPlus);
+    if (!incr)
+        decr = tokens.Match(TokenType::OpMinus, TokenType::OpMinus);
+    bool op = incr || decr;
+
+    if (op)
+    {
+        auto inner = ParsePreOperator();
+        if (!inner)
+            return Error("Expected an expression");
+
+        return new UnaryExprAST{ inner, "++" };
+    }
+    else
+    {
+        auto inner = ParseMemberAccess();
+        if (!inner)
+            return NonMatch();
+
+        return inner;
+    }
+
+    return NonMatch();
+}
+
+
+PResult<ExprAST> Parser::ParsePostOperator()
+{
+    return NonMatch();
+}
+
+PResult<ExprAST> Parser::ParseCompound()
+{
+    return NonMatch();
+}
+
+PResult<ExprAST> Parser::ParseMemberAccess()
+{
+    Mark();
+    auto funcCall = ParseFunctionCall();
+    if (!funcCall)
+        return NonMatch();
+
+    ExprAST* tail = NULL;
+    bool dot = tokens.Match(TokenType::OpDot);
+
+    if (dot)
+    {
+        tail = ParseMemberAccess();
+        if (!tail)
+            return Error("Expected an expression");
+
+        return new BinaryExprAST{ funcCall, tail, "." };
+    }
+    return funcCall;
+}
+
+PResult<ExprAST> Parser::ParseFunctionCall()
+{
+    Mark();
+
+    auto subscript = ParseSubscript();
+    if (!subscript)
+        return NonMatch();
+
+    std::vector<ExprAST*> inputArguments;
+    if (!tokens.Match(TokenType::LParen))
+        return subscript;
+
+    auto inputArg = ParseExpression();
+    if (inputArg) // Non empty function call arguments
+    {
+        inputArguments.push_back(inputArg);
+        bool argComma = tokens.Match(TokenType::OpComma);
+        if (argComma) // More than one argument
+        {
+            inputArg = ParseExpression();
+            if (!inputArg)
+                return Error("Expected an expression");
+            inputArguments.push_back(inputArg);
+
+            while (inputArg && argComma)
+            {
+                argComma = tokens.Match(TokenType::OpComma);
+                inputArg = ParseExpression();
+
+                if (argComma && !inputArg)
+                    return Error("Expected an expression");
+                if (inputArg)
+                    inputArguments.push_back(inputArg);
+            }
+        }
+    }
+
+    if (!tokens.Match(TokenType::RParen))
+        return Error("Expected a ')'");
+
+    return new FunctionCallAST{ subscript, inputArguments };
+}
+
+
+PResult<ExprAST> Parser::ParseSubscript()
+{
+
+    Mark();
+    auto factor = ParseFactor();
+    if (!factor)
+        return NonMatch();
+
+    ExprAST* index = NULL;
+    bool lsquare = tokens.Match(TokenType::LSquare);
+
+    if (lsquare)
+    {
+        index = ParseExpression();
+        if (!index)
+            return Error("Expected an expression");
+
+        bool rsquare = tokens.Match(TokenType::RSquare);
+        if (!rsquare)
+            return Error("Expected ']'");
+
+        return new SubscriptAST{ factor, index };
+    }
+    return factor;
+
+}
+
+
+PResult<ExprAST> Parser::ParseFactor()
+{
+    Mark();
+    auto exprFactor = ParseExprFactor();
     if (exprFactor)
-        return (Factor *)exprFactor;
+        return exprFactor;
 
-    auto atomFactor = ParseAtomicFactor(tokens);
+    auto atomFactor = ParseAtomicFactor();
     if (atomFactor)
-        return (Factor *)atomFactor;
+        return atomFactor;
 
-    return NONMATCH();
+    return NonMatch();
 }
-PResult<AtomicFactor> Parser::ParseAtomicFactor(TokenStream &tokens)
+PResult<ExprAST> Parser::ParseAtomicFactor()
 {
-    MARK();
-    auto atom = ParseAtom(tokens);
-    if (!atom)
-        return NONMATCH();
+    Mark();
 
-    return new AtomicFactor{atom};
-}
-
-PResult<Atom> Parser::ParseAtom(TokenStream &tokens)
-{
-    MARK();
-    auto dispatch = ParseFunctionCall(tokens);
-    if (dispatch)
-        return (Atom *)dispatch;
-
-    auto number = ParseNumber(tokens);
+    auto number = ParseNumber();
     if (number)
-        return (Atom *)number;
+        return (ExprAST*)number;
 
-    auto name = ParseName(tokens);
+    auto name = ParseName(true);
     if (name)
-        return (Atom *)name;
+        return (ExprAST*)name;
 
-    return NONMATCH();
+    auto str = ParseStringLiteral();
+    if (str)
+        return (ExprAST*)str;
+
+    auto ch = ParseCharLiteral();
+    if (ch)
+        return (ExprAST*)ch;
+
+    auto bl = ParseBoolLiteral();
+    if (bl)
+        return (ExprAST*)bl;
+
+    return NonMatch();
 }
 
-PResult<Number> Parser::ParseNumber(TokenStream &tokens)
+PResult<NumberAST> Parser::ParseNumber()
 {
-    MARK();
+    Mark();
     std::string numVal = "";
     bool decimal = false;
     auto number = tokens.MatchNumber(numVal, decimal);
     if (!number)
-        return NONMATCH();
+        return NonMatch();
 
-    auto t = Number::Type::Int32;
+    auto t = NumberAST::Type::Int32;
     std::string suffix = "";
     bool hasSuffix = tokens.MatchLabel(suffix);
 
     if (!hasSuffix && decimal)
-        t = Number::Type::Float64;
+        t = NumberAST::Type::Float64;
 
     if (hasSuffix)
     {
         if (suffix == "d" || suffix == "D")
-            t = Number::Type::Float64;
+            t = NumberAST::Type::Float64;
         else if (suffix == "f" || suffix == "F")
-            t = Number::Type::Float32;
+            t = NumberAST::Type::Float32;
         else if (suffix == "l" || suffix == "L")
-            t = Number::Type::Int64;
+            t = NumberAST::Type::Int64;
         else if (suffix == "u" || suffix == "U")
-            t = Number::Type::UInt32;
+            t = NumberAST::Type::UInt32;
         else if (suffix == "ul" || suffix == "UL")
-            t = Number::Type::UInt64;
+            t = NumberAST::Type::UInt64;
     }
 
-    return new Number{numVal, t};
+    return new NumberAST{ numVal, t };
 }
 
-PResult<Name> Parser::ParseName(TokenStream &tokens)
+PResult<NameAST> Parser::ParseName(bool bScopable)
 {
-    MARK();
+    Mark();
+
+    std::vector<std::string> labels;
     std::string name = "";
     auto nameLabel = tokens.MatchLabel(name);
     if (!nameLabel)
-        return NONMATCH();
+        return NonMatch();
 
-    return new Name{name};
+    labels.push_back(name);
+
+    if (bScopable)
+    {
+        do
+        {
+            if (!tokens.Match(TokenType::OpColon, TokenType::OpColon))
+                break;
+
+            nameLabel = tokens.MatchLabel(name);
+            if (!nameLabel)
+                return Error("Expected identifier");
+
+            labels.push_back(name);
+
+        } while (nameLabel);
+    }
+    return new NameAST{ labels };
 }
 
-PResult<VarDeclaration> Parser::ParseVarDeclaration(TokenStream &tokens)
+PResult<StringLiteralAST> Parser::ParseStringLiteral()
 {
-    MARK();
+    Mark();
+    std::string value = "";
+    auto stringLit = tokens.MatchStringLiteral(value);
+    if (!stringLit)
+        return NonMatch();
 
-    bool varKw = tokens.Match(TokenType::KwLet);
-    if (!varKw)
-        return NONMATCH();
+    return new StringLiteralAST{ value };
+}
+PResult<CharLiteralAST> Parser::ParseCharLiteral()
+{
+    Mark();
+    char value = '\0';
+    auto stringLit = tokens.MatchCharLiteral(value);
+    if (!stringLit)
+        return NonMatch();
 
-    auto varName = ParseName(tokens);
-    if (!varName)
-        return ERROR("Expected an identifier");
+    return new CharLiteralAST{ value };
+}
 
-    if (!tokens.Match(TokenType::OpColon))
-        return ERROR("Expected ':' after var declaration");
+PResult<BoolLiteralAST> Parser::ParseBoolLiteral()
+{
+    Mark();
+    bool value = true;
 
-    auto varTypeName = ParseName(tokens);
-    if (!varTypeName)
-        return ERROR("Expected type identifier");
+    if (tokens.Match(TokenType::KwTrue))
+        value = true;
+    else if (tokens.Match(TokenType::KwFalse))
+        value = false;
+    else
+        return NonMatch();
 
-    Expression *rhs = NULL;
-    if (tokens.Match(TokenType::OpEqual))
-    {
-        rhs = ParseExpression(tokens);
-        if (!rhs)
-            return ERROR("Expected an expression as assignment");
-    }
-
-    return new VarDeclaration{varName, varTypeName, rhs};
+    return new BoolLiteralAST{ value };
 }

@@ -6,98 +6,166 @@
  *   Regular statements;
  */
 
-class Name;
-class Expression;
-class Block;
+class NameAST;
+class ExprAST;
+class BlockAST;
+class TypeAST;
 class CModule;
 
-class Statement : public ASTNode
+class StmntAST : public ASTNode
 {
-  public:
-    llvm::Value *Codegen();
+public:
+    CGValue* Codegen(CModule* module);
 };
 
-class VarDeclaration : public Statement
+class VarDeclAST : public StmntAST
 {
-  public:
-    Name *VarName;
-    Name *TypeName;
-    Expression *RHS;
-    llvm::Value *Codegen();
-    VarDeclaration(Name *name, Name *typeName, Expression *init) : VarName(name), TypeName(typeName), RHS(init)
+public:
+    NameAST* VarName;
+    TypeAST* TypeName;
+    ExprAST* RHS;
+    VarDeclAST(NameAST* name, TypeAST* typeName, ExprAST* init) : VarName(name), TypeName(typeName), RHS(init)
     {
     }
 
-    llvm::Value *Codegen(CModule *module);
+    ASTChildren GetChildren();
+    CGValue* Codegen(CModule* module);
 };
 
-class IfStatement : public Statement
+class ConstDeclAST : public StmntAST
 {
-  public:
-    Expression *Condition;
-    Block *Body;
-    IfStatement(Expression *cond, Block *body) : Condition(cond), Body(body)
+public:
+    NameAST* VarName;
+    TypeAST* TypeName;
+    ExprAST* RHS;
+    ConstDeclAST(NameAST* name, TypeAST* typeName, ExprAST* init) : VarName(name), TypeName(typeName), RHS(init)
     {
     }
-    ~IfStatement()
-    {
-    }
-    llvm::Value *Codegen(CModule *module);
+
+    ASTChildren GetChildren();
+    CGValue* Codegen(CModule* module);
 };
 
-class ForStatement : public Statement
+class IfStmntAST : public StmntAST
 {
-  public:
-    Statement *Init;
-    Expression *Condition;
-    Statement *Iter;
-    Block *Body;
+public:
+    ExprAST* Condition;
+    BlockAST* Body;
+    IfStmntAST(ExprAST* cond, BlockAST* body) : Condition(cond), Body(body)
+    {
+    }
+    ~IfStmntAST()
+    {
+    }
 
-    ForStatement(Statement *init, Expression *cond, Statement *iter, Block *body)
+    ASTChildren GetChildren();
+    CGValue* Codegen(CModule* module);
+};
+
+class ForStmntAST : public StmntAST
+{
+public:
+    StmntAST* Init;
+    ExprAST* Condition;
+    StmntAST* Iter;
+    BlockAST* Body;
+
+    ForStmntAST(StmntAST* init, ExprAST* cond, StmntAST* iter, BlockAST* body)
         : Init(init), Condition(cond), Body(body), Iter(iter)
     {
     }
 
-    ~ForStatement()
+    ~ForStmntAST()
     {
     }
 
-    llvm::Value *Codegen(CModule *module);
+    ASTChildren GetChildren();
+    CGValue* Codegen(CModule* module);
 };
 
-class WhileStatement : public Statement
+class ForRangeStmntAST : public StmntAST
 {
-  public:
-    Expression *Condition;
-    Block *Body;
+public:
+    StmntAST* Item;
+    StmntAST* Container;
+    BlockAST* Body;
 
-    WhileStatement(Expression *cond, Block *body) : Condition(cond), Body(body)
+    ForRangeStmntAST(StmntAST* item, StmntAST* container, BlockAST* body)
+        : Item(item), Container(container), Body(body)
     {
     }
 
-    ~WhileStatement()
+    ~ForRangeStmntAST()
     {
     }
-    llvm::Value *Codegen(CModule *module);
+
+    ASTChildren GetChildren();
+    CGValue* Codegen(CModule* module);
 };
 
-class Assignment : public Statement
+class WhileStmntAST : public StmntAST
 {
-  public:
-    Expression *LHS;
-    Expression *RHS;
+public:
+    ExprAST* Condition;
+    BlockAST* Body;
 
-    Assignment(Expression *lhs, Expression *rhs) : LHS(lhs), RHS(rhs)
+    WhileStmntAST(ExprAST* cond, BlockAST* body) : Condition(cond), Body(body)
     {
     }
+
+    ~WhileStmntAST()
+    {
+    }
+
+    ASTChildren GetChildren();
+    CGValue* Codegen(CModule* module);
 };
 
-class ReturnStatement : public Statement
+class ExprStmntAST : public StmntAST
 {
-  public:
-    Expression *Expr;
-    ReturnStatement(Expression *expr) : Expr(expr)
+public:
+    ExprAST* Expr;
+    ExprStmntAST(ExprAST* expr) : Expr(expr)
+    {
+
+    }
+    ASTChildren GetChildren();
+    CGValue* Codegen(CModule* module);
+};
+
+class AssignmentAST : public StmntAST
+{
+public:
+    ExprAST* LHS;
+    ExprAST* RHS;
+
+    AssignmentAST(ExprAST* lhs, ExprAST* rhs) : LHS(lhs), RHS(rhs)
     {
     }
-    llvm::Value *Codegen(CModule *module);
+
+    ASTChildren GetChildren();
+    CGValue* Codegen(CModule* module);
+};
+
+class ReturnStmntAST : public StmntAST
+{
+public:
+    ExprAST* Expr;
+    ReturnStmntAST(ExprAST* expr) : Expr(expr)
+    {
+    }
+
+    ASTChildren GetChildren();
+    CGValue* Codegen(CModule* module);
+};
+
+class BreakStmntAST : public StmntAST
+{
+public:
+    BreakStmntAST()
+    {
+    }
+
+    ASTChildren GetChildren() { return ASTChildren(); }
+    CGValue* Codegen(CModule* module);
 };

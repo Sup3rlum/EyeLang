@@ -2,54 +2,110 @@
 
 #include "Common.h"
 
-class MemberFunctionDefinition;
-class VarDeclaration;
+class MemberFuncDefAST;
+class VarDeclAST;
 
-class EnumDefinition : public ModuleStatement
+class NamespaceDefAST : public ModuleStmntAST
 {
-  public:
-    Name *EnumName;
-    std::vector<Name *> Values;
-    EnumDefinition(Name *enumName, const std::vector<Name *> values) : EnumName(enumName), Values(values)
+public:
+    NameAST* Name;
+    std::vector<ModuleStmntAST*> Stmnts;
+    NamespaceDefAST(NameAST* name, std::vector<ModuleStmntAST*> stmnts) : Name(name), Stmnts(stmnts)
     {
+
     }
-    ~EnumDefinition()
+    ASTChildren GetChildren()
     {
+        ASTChildren children{ Name };
+        for (auto val : Stmnts)
+            children.push_back(val);
+
+        return children;
     }
-    llvm::Value *Codegen(CModule *module);
+
+    CGValue* Codegen(CModule* module);
 };
 
-class StructDefinition : public ModuleStatement
+class EnumDefAST : public ModuleStmntAST
 {
-  public:
-    Name *StructName;
-    std::vector<VarDeclaration *> Fields;
-    std::vector<MemberFunctionDefinition *> Members;
+public:
+    NameAST* EnumName;
+    std::vector<NameAST*> Values;
+    EnumDefAST(NameAST* enumName, const std::vector<NameAST*> values) : EnumName(enumName), Values(values)
+    {
+    }
+    ~EnumDefAST()
+    {
+    }
 
-    StructDefinition(Name *name, const std::vector<VarDeclaration *> &fields,
-                     const std::vector<MemberFunctionDefinition *> &members)
-        : StructName(name), Fields(fields), Members(members)
+    ASTChildren GetChildren()
     {
+        ASTChildren children = { EnumName };
+        for (auto val : Values)
+            children.push_back(val);
+
+        return children;
     }
-    ~StructDefinition()
-    {
-    }
-    llvm::Value *Codegen(CModule *module);
+
+    CGValue* Codegen(CModule* module);
 };
 
-class CompDefinition : public ModuleStatement
+class StructDefAST : public ModuleStmntAST
 {
-  public:
-    Name *CompName;
-    std::vector<Name *> Components;
-    std::vector<VarDeclaration *> Fields;
-    std::vector<MemberFunctionDefinition *> Members;
+public:
+    NameAST* StructName;
+    std::vector<VarDeclAST*> Fields;
+    std::vector<MemberFuncDefAST*> Members;
 
-    CompDefinition(Name *compName, const std::vector<Name *> &components, const std::vector<VarDeclaration *> &fields,
-                   const std::vector<MemberFunctionDefinition *> &members)
-        : CompName(compName), Components(components), Fields(fields), Members(members)
+    StructDefAST(
+        NameAST* name, 
+        const std::vector<VarDeclAST*>& fields,
+        const std::vector<MemberFuncDefAST*>& members
+    ) : StructName(name), 
+        Fields(fields), 
+        Members(members)
+    {
+    }
+    ~StructDefAST()
     {
     }
 
-    llvm::Value *Codegen(CModule *module);
+    ASTChildren GetChildren();
+    CGValue* Codegen(CModule* module);
+};
+
+class CompDefAST : public ModuleStmntAST
+{
+public:
+    NameAST* CompName;
+    std::vector<NameAST*> Components;
+    std::vector<VarDeclAST*> Fields;
+    std::vector<MemberFuncDefAST*> Members;
+
+    CompDefAST(
+        NameAST* compName, 
+        const std::vector<NameAST*>& components, 
+        const std::vector<VarDeclAST*>& fields,
+        const std::vector<MemberFuncDefAST*>& members
+    ) : CompName(compName), 
+        Components(components), 
+        Fields(fields), 
+        Members(members)
+    {
+    }
+
+    ASTChildren GetChildren();
+    CGValue* Codegen(CModule* module);
+};
+
+class ImportStatementAST : public ASTNode
+{
+public:
+    NameAST* ImportName;
+    ImportStatementAST(NameAST* importName) : ImportName(importName)
+    {
+
+    }
+    ASTChildren GetChildren();
+    CGValue* Codegen(CModule* module);
 };

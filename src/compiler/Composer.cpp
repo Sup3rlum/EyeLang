@@ -1,10 +1,9 @@
 // Composer.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 
-#include "composer.h"
-#include "Lexer/Lexer.h"
-#include "Util/console_helper.h"
+#include "Composer.h"
 #include <chrono>
+#include "AST/ASTDump.h"
 
 #define COMPILE_OK 0
 #define COMPILE_ERROR 1
@@ -24,27 +23,35 @@ int CompilerTask::Run()
         return COMPILE_ERROR;
     }
 
+    BasicLogger* logger = new BasicLogger();
+
     std::string source((std::istreambuf_iterator<char>(fin)), std::istreambuf_iterator<char>());
     auto sourceStream = SourceStream(filePath, source);
     auto tokens = Tokenizer().Tokenize(sourceStream);
-    auto ast = Parser().GenerateAST(tokens);
+    auto ast = Parser(tokens, logger).GenerateAST();
+    auto sa = StaticAnalysis(logger).VerifyTree(ast);
 
-    if (ast.parseErrors.size() > 0 || ast.Ptr == NULL)
+    if (ast.Ptr == NULL || sa == false)
     {
         std::cout << CText<FG_RED>("\t - Error compiling: ") << CText<FG_RED>(filePath) << std::endl;
-        for (auto error : ast.parseErrors)
+        for (auto error : logger->GetAllMessages())
         {
-            std::cout << CText<FG_RED>("\t\t") << error.sourceLocation.sourceName << ":" << error.sourceLocation.line
-                      << ":" << error.sourceLocation.character << " " << CText<FG_RED>(error.message) << std::endl;
+            //std::cout << CText<FG_RED>("\t\t") << error->sourceLocation.sourceName << ":" << error.sourceLocation.line
+            //    << ":" << error.sourceLocation.character << " " << CText<FG_RED>(error.message) << std::endl;
+
+            std::cout << error->GetStr() << std::endl;
         }
         return COMPILE_ERROR;
     }
 
     std::cout << CText<FG_GREEN>("\t - Compiled source: ") << CText<FG_GREEN>(filePath) << std::endl;
+    std::string astDump = "";
+    std::cout << ASTDump().ToString(ast, 0, astDump);
+
     return COMPILE_OK;
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
 
     std::vector<std::string> args;
@@ -56,7 +63,7 @@ int main(int argc, char **argv)
         }
 
         std::vector<CompilerTask> tasks;
-        for (auto &arg : args)
+        for (auto& arg : args)
         {
             tasks.push_back(CompilerTask(arg, ""));
         }
@@ -64,12 +71,12 @@ int main(int argc, char **argv)
         std::cout << "Compiling " << tasks.size() << " source files:" << std::endl;
         std::cout << "_____________________________________\n" << std::endl;
 
-        const auto start{std::chrono::steady_clock::now()};
-        for (auto &t : tasks)
+        const auto start{ std::chrono::steady_clock::now() };
+        for (auto& t : tasks)
         {
             t.Run();
         }
-        const auto end{std::chrono::steady_clock::now()};
+        const auto end{ std::chrono::steady_clock::now() };
         const std::chrono::duration<double> elapsed_seconds{end - start};
 
         std::cout << "\n_____________________________________\n" << std::endl;

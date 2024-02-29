@@ -1,40 +1,41 @@
 #include "Parser.h"
 
-PResult<StructDefinition> Parser::ParseStructDefinition(TokenStream &tokens)
+PResult<StructDefAST> Parser::ParseStructDefinition()
 {
-    MARK();
+    Mark();
 
     if (!tokens.Match(TokenType::KwStruct))
-        return NONMATCH();
+        return NonMatch();
 
-    auto structName = ParseName(tokens);
+    auto structName = ParseName();
     if (!structName)
-        return ERROR("Expected identifier");
+        return Error("Expected identifier");
 
     if (!tokens.Match(TokenType::LCurly))
-        return ERROR("Expected struct body");
-    MemberFunctionDefinition *member = 0;
-    VarDeclaration *field = 0;
+        return Error("Expected struct body");
 
-    std::vector<MemberFunctionDefinition *> members;
-    std::vector<VarDeclaration *> fields;
+    MemberFuncDefAST* member = 0;
+    VarDeclAST* field = 0;
+
+    std::vector<MemberFuncDefAST*> members;
+    std::vector<VarDeclAST*> fields;
 
     tokens.PushScope(structName);
     {
         do
         {
-            member = ParseMemberFunctionDefinition(tokens);
+            member = ParseMemberFunctionDefinition();
             if (member)
             {
                 members.push_back(member);
                 continue;
             }
 
-            field = ParseVarDeclaration(tokens);
+            field = ParseVarDeclaration();
             if (field)
             {
                 if (!tokens.Match(TokenType::OpSemicolon))
-                    return ERROR("Expected ';'");
+                    return Error("Expected ';'");
                 fields.push_back(field);
                 continue;
             }
@@ -44,7 +45,7 @@ PResult<StructDefinition> Parser::ParseStructDefinition(TokenStream &tokens)
     tokens.PopScope();
 
     if (!tokens.Match(TokenType::RCurly))
-        return ERROR("Expected '}'");
+        return Error("Expected '}' at the end of struct");
 
-    return new StructDefinition{structName, fields, members};
+    return new StructDefAST{ structName, fields, members };
 }

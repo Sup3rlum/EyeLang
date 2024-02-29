@@ -2,116 +2,205 @@
 
 #include "Common.h"
 
-class Expression;
+class ExprAST;
 
-class FunctionCall : public Atom
+
+class ExprAST : public ASTNode
 {
-  public:
-    Name *FuncName;
-    std::vector<Expression *> Arguments;
-
-    FunctionCall(Name *funcName, const std::vector<Expression *> &args) : FuncName(funcName), Arguments(args)
+public:
+    ExprAST()
     {
     }
-    ~FunctionCall()
-    {
-    }
-
-    llvm::Value *Codegen(CModule *module) override;
+    CGValue* Codegen(CModule* module) override;
 };
 
-class Factor : public ASTNode
+class NumberAST : public ExprAST
 {
-  public:
+
+public:
+    enum class Type
+    {
+        Float32,
+        Float64,
+        Int32,
+        Int64,
+        UInt32,
+        UInt64
+    } NumType;
+
+    std::string Value;
+    NumberAST(std::string& value, Type type) : Value(value), NumType(type)
+    {
+    }
+
+    CGValue* Codegen(CModule* module);
+    ASTChildren GetChildren() { return ASTChildren(); }
+    std::string GetValues() { return Value; }
 };
 
-class AtomicFactor : public Factor
+class NameAST : public ExprAST
 {
-  public:
-    Atom *atom;
-    AtomicFactor(Atom *atom) : atom(atom)
+public:
+    std::vector<std::string> Labels;
+    NameAST(const std::vector<std::string>& labels) : Labels(labels)
     {
     }
-    llvm::Value *Codegen(CModule *module) override;
+
+    std::string GetBaseName()
+    {
+        return Labels[Labels.size() - 1];
+    }
+
+    ASTChildren GetChildren() { return ASTChildren(); }
+    CGValue* Codegen(CModule* module);
+    std::string GetValues()
+    {
+        std::string out = "";
+        for (auto name : Labels)
+        {
+            out += name + " ";
+        }
+        return out;
+    }
 };
 
-class ExprFactor : public Factor
+class StringLiteralAST : public ExprAST
 {
-  public:
-    Expression *Inner;
-    ExprFactor(Expression *inner) : Inner(inner)
+public:
+    std::string Value;
+    StringLiteralAST(const std::string& value) : Value(value)
     {
+
     }
-    llvm::Value *Codegen(CModule *module) override;
+
+    ASTChildren GetChildren() { return ASTChildren(); }
+    CGValue* Codegen(CModule* module);
+    std::string GetValues() { return Value; }
 };
 
-class Term : public ASTNode
+class CharLiteralAST : public ExprAST
 {
-  public:
-    Factor *LHS;
-    Term *RHS;
-    Term(Factor *lhs, Term *rhs) : LHS(lhs), RHS(rhs)
+public:
+    char Value;
+    CharLiteralAST(char value) : Value(value)
     {
+
     }
-    llvm::Value *Codegen(CModule *module) override;
-};
-class Sum : public ASTNode
-{
-  public:
-    Term *LHS;
-    Sum *RHS;
-    Sum(Term *lhs, Sum *rhs) : LHS(lhs), RHS(rhs)
-    {
-    }
-    llvm::Value *Codegen(CModule *module) override;
-};
-class Cond : public ASTNode
-{
-  public:
-    Sum *LHS;
-    Cond *RHS;
-    Cond(Sum *lhs, Cond *rhs) : LHS(lhs), RHS(rhs)
-    {
-    }
-    llvm::Value *Codegen(CModule *module) override;
-};
-class Eq : public ASTNode
-{
-  public:
-    Cond *LHS;
-    Eq *RHS;
-    Eq(Cond *lhs, Eq *rhs) : LHS(lhs), RHS(rhs)
-    {
-    }
-    llvm::Value *Codegen(CModule *module) override;
-};
-class LogicalAnd : public ASTNode
-{
-  public:
-    Eq *LHS;
-    LogicalAnd *RHS;
-    LogicalAnd(Eq *lhs, LogicalAnd *rhs) : LHS(lhs), RHS(rhs)
-    {
-    }
-    llvm::Value *Codegen(CModule *module) override;
-};
-class LogicalOr : public ASTNode
-{
-  public:
-    LogicalAnd *LHS;
-    LogicalOr *RHS;
-    LogicalOr(LogicalAnd *lhs, LogicalOr *rhs) : LHS(lhs), RHS(rhs)
-    {
-    }
-    llvm::Value *Codegen(CModule *module) override;
+
+    ASTChildren GetChildren() { return ASTChildren(); }
+    CGValue* Codegen(CModule* module);
+    std::string GetValues() { return { Value }; }
 };
 
-class Expression : public ASTNode
+class BoolLiteralAST : public ExprAST
 {
-  public:
-    LogicalOr *Body;
-    Expression(LogicalOr *body) : Body(body)
+public:
+    bool Value;
+    BoolLiteralAST(bool value) : Value(value)
     {
     }
-    llvm::Value *Codegen(CModule *module) override;
+
+    ASTChildren GetChildren() { return ASTChildren(); }
+    CGValue* Codegen(CModule* module);
+    std::string GetValues() { return Value ? "true" : "false"; }
+};
+
+class ModuleStmntAST : public ASTNode
+{
+public:
+    CGValue* Codegen(CModule* module);
+};
+
+
+class BinaryExprAST : public ExprAST
+{
+public:
+    ExprAST* Left;
+    ExprAST* Right;
+    std::string Op;
+    BinaryExprAST(ExprAST* left, ExprAST* right, const std::string& Op) : Left(left), Right(right), Op(Op)
+    {
+
+    }
+    CGValue* Codegen(CModule* module) override;
+    ASTChildren GetChildren() { return ASTChildren{ Left, Right }; }
+    std::string GetValues() { return Op; }
+};
+
+
+class UnaryExprAST : public ExprAST
+{
+public:
+    ExprAST* Inner;
+    std::string Op;
+    UnaryExprAST(ExprAST* inner, const std::string& Op) : Inner(inner), Op(Op)
+    {
+
+    }
+    CGValue* Codegen(CModule* module) override;
+    ASTChildren GetChildren() { return ASTChildren{ Inner }; }
+    std::string GetValues() { return Op; }
+};
+
+class ParenExprAST : public ExprAST
+{
+public:
+    ExprAST* Inner;
+    ParenExprAST(ExprAST* inner) : Inner(inner)
+    {
+
+    }
+    CGValue* Codegen(CModule* module) override;
+    ASTChildren GetChildren() { return ASTChildren{ Inner }; }
+};
+
+/*
+class AtomicExprAST : public ExprAST
+{
+public:
+    AtomAST* atom;
+    AtomicExprAST(AtomAST* atom) : atom(atom)
+    {
+    }
+
+    CGValue* Codegen(CModule* module) override;
+    ASTChildren GetChildren() { return ASTChildren{ atom }; }
+};*/
+
+class FunctionCallAST : public ExprAST
+{
+public:
+    ExprAST* Callee;
+    std::vector<ExprAST*> Arguments;
+    FunctionCallAST(ExprAST* callee, const std::vector<ExprAST*>& args) : Callee(callee), Arguments(args)
+    {
+    }
+    ~FunctionCallAST()
+    {
+    }
+
+    ASTChildren GetChildren()
+    {
+        ASTChildren children { Callee };
+        for (auto arg : Arguments)
+            children.push_back(arg);
+
+        return children;
+    }
+
+    CGValue* Codegen(CModule* module) override;
+    std::string GetValues() { return "()"; }
+};
+
+class SubscriptAST : public ExprAST
+{
+public:
+    ExprAST* Object;
+    ExprAST* Index;
+    SubscriptAST(ExprAST* object, ExprAST* index) : Object(object), Index(index)
+    {
+    }
+
+    CGValue* Codegen(CModule* module) override;
+    ASTChildren GetChildren() { return ASTChildren{ Object, Index }; }
 };
