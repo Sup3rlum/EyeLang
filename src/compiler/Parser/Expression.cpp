@@ -192,6 +192,7 @@ PResult<ExprAST> Parser::ParseTerm()
 
         return new BinaryExprAST{ member, tail, "*" };
     }
+
     return member;
 }
 

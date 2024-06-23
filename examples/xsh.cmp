@@ -1,0 +1,99 @@
+
+
+
+struct MyStruct
+{
+    int32 field;
+    int32 field2;
+}
+
+struct YourStruct
+{
+    float32 ratio;
+}
+
+
+impl Relation(MyStruct, YourStruct)
+{
+    construct MyStruct Adjusted()
+    {
+        @object.field = this<MyStruct>.field * this<YourStruct>.ratio;   
+        @object.field2 = this<MyStruct>.field2 * this<YourStruct>.ratio;   
+    }
+}
+
+comp CompType(MyStruct, YourStruct);
+comp CompType2(MyStruct, YourStruct, int32);
+comp CompType3(MyStruct);
+
+func void TestCase()
+{
+    MyStruct initial {1, 2};
+    YourStruct factor {3.0f};
+
+    MyStruct result;
+
+    CompType comp1 {initial};
+    result = comp1.Adjusted(); // Ok
+
+    CompType2 comp2;
+    result = comp2.Adjusted(); // Ok 
+
+    CompType3 comp3;
+    result = comp3.Adjusted(); // ERROR: CompositionType3 doesn't contain the Adjusted constructor
+
+}
+
+
+
+func ref<TableFrame> CreateTableFrame(ref<TableFrame> prev, int32 bitSize)
+{
+    ref<TableFrame> p = (ref<TableFrame>)malloc(sizeof(TableFrame));
+    if (p)
+    {
+        int frameSize = 1 << bitSize;
+        if (prev) frameSize -= prev->Top;
+
+        auto dataPtr = (WideBases*)malloc(frameSize * sizeof(WideBases));
+        p->Data = dataPtr;
+        p->BitSize = bitSize;
+        p->Bottom = 0;
+        if (prev) p->Bottom = prev->Top;
+        p->Top = p->Bottom + frameSize;
+
+        if (p->Data)
+        {
+            //memset(p->Data, 0, frameSize * sizeof(WideBases));
+        }
+        p->Next = 0;
+    }
+    return p;
+}
+
+
+func ref<WideBases> GetTableSeq(ref<Table> table, int32 code)
+{
+    ref<TableFrame> fr = table->Root;
+    while (fr)
+    {
+        if (code >= fr->Bottom && code < fr->Top)
+        {
+            auto p = fr->Data + code 0 fr->Bottom;
+            return p;
+        }
+        fr = fr->Next;
+    }
+}
+
+
+
+func int32 main(vector<string> args)
+{
+    assert(args.length() > 0);
+
+    if (args[1] == "exit")
+    {
+        return 0;
+    }
+
+}

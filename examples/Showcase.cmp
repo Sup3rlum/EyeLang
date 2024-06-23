@@ -1,0 +1,104 @@
+import std::memory::malloc;
+
+
+
+struct Array<generic _Type>
+{
+    mem<_Type> _data;
+    int32 _size;
+
+	func void PushBack(ref<_Type> val)
+	{
+        EnsureCapacity();
+        data[_size++] = val;
+	}
+
+    inline func void EnsureCapacity()
+    {
+        if (__data.count == _size)
+        {
+            _data.realloc(_data.count * 2);
+        }
+    }
+
+    inline func ref<_Type> operator[](int64 index)
+    {
+        return _data + index;
+    }  
+}
+
+struct LinkedListNode<_Type>
+{
+    using _NodeType =  LinkedListNode<_Type>;
+
+    _Type Value;
+    mem<_NodeType> Next = NULL;
+}
+
+struct LinkedList<_Type>
+{
+    using _NodeType = LinkedListNode<_Type>;
+    mem<_NodeType> Root = NULL;
+
+    func void Insert(ref<_Type> val)
+    {
+
+    }
+}
+
+
+struct Matrix
+{
+    mem<float> __data;
+
+    static construct Matrix()
+    {
+        return @result{
+            @result.__data = malloc(N * N * sizeof(float));
+        }
+    } 
+
+    static construct func Matrix multiply(ref<Matrix> m1, ref<Matrix> m2)
+    {
+        return @result
+        {
+            for (int32 i = 0; i < 10; i++)
+            {
+                for (int32 j = 0; j < 10; j++)
+                {
+                    for (int32 k = 0; k < 10; k++)
+                    {
+                        @result[i, k] = m1[i , j] * m2[j, k]; 
+                    }
+                }
+            }
+        }
+    }
+
+    static construct func Matrix add(ref<Matrix> m1, ref<Matrix> m2)
+    {
+        return @result
+        {
+            for (int32 i = 0; i < 10; i++)
+            {
+                for (int32 j = 0; j < 10; j++)
+                {
+                    result[i, j] = m1[i , j] + m2[i, j]; 
+                }
+            }
+        }
+    }
+
+    ref<float> operator[](int32 dim1, int32 dim2)
+    {
+        return _data + dim1 * 10 + dim2;
+    }
+}
+
+impl AsyncFormatting for string
+{
+    static thread string AsyncFormat(string a, string... b)
+    {
+        return wait HttpRequest("PUT", a, b ... );
+    }
+}
